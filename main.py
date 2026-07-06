@@ -4,13 +4,30 @@
 # July 2nd, 2026
 import pygame
 import random
+import time
+import os
+import sys
+
+def asset_dir(relative_filepath):
+    # Get the filepath to the assets, such as the font in this case
+    try:
+        root = sys._MEIPASS
+    except AttributeError:
+        root = os.path.abspath(".")
+    return os.path.join(root, relative_filepath)
+
 red = (255, 100, 100)
 green = (150, 200, 110)
 black = (50,60,70)
+font_color = (60,70,80)
+screen_width = 600
+screen_height = 600
 score = 0
 pygame.init()
-screen = pygame.display.set_mode((600, 600))
+screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Snake")
+font_file = asset_dir("SpaceMono-Regular.ttf")
+font = pygame.font.Font(font_file, 100)
 clock = pygame.time.Clock()
 running = True
 keys = pygame.key.get_pressed()
@@ -59,16 +76,9 @@ def remove_node(snake, length=snake_length):
 def detect(thing_to_detect, snake_list, direction, snake_width):
     snake_head = snake_list[-1]
     # Using Pygame's built in Rect() hitboxes functions
-    sensor = pygame.Rect(snake_head[0], snake_head[1], snake_width, snake_width)
-    if direction == "left":
-        sensor.x -= snake_width
-    elif direction == "right":
-        sensor.x += snake_width
-    elif direction == "up":
-        sensor.y -= snake_width
-    elif direction == "down":
-        sensor.y += snake_width
-    return sensor.colliderect(thing_to_detect)
+    snake_skull = snake_list[-1]
+    snake_collision_box = snake_skull[2]
+    return snake_collision_box.colliderect(thing_to_detect)
 def die(snake_list, snake_width):
     global running
     snake_head = snake_list[-1]
@@ -77,7 +87,12 @@ def die(snake_list, snake_width):
     snake_skull = snake_head[2]
     for node in snake_body:
         if node[2].colliderect(snake_skull):
-            print(snake_body.index(node))
+            pygame.display.flip()
+            crash_frame = pygame.time.get_ticks()
+
+            while pygame.time.get_ticks() - crash_frame < 800:
+                pygame.event.pump()
+                clock.tick(60)
             running = False
 def increase_growth(score): # Make the snake grow more the more food it eats
     global growth
@@ -91,8 +106,8 @@ max_fruits = 1
 def get_fruit_pos(fruit_width, snake, screen_w=600, screen_h=600):
     # Gets random position outside of Snake bounding box to spawn a fruit
     while True: # Keep pickng a new position until we find one that isn't on the snake's body
-        screen_w_limit = screen_w - fruit_width
-        screen_h_limit = screen_h - fruit_width
+        screen_w_limit = screen_w - (fruit_width * 2)
+        screen_h_limit = screen_h - (fruit_width * 2) # Doubling the padding so fruit can't spawn in the warp zone
         fruit_x = random.randrange(0, screen_w_limit, fruit_width + fruit_width)
         fruit_y = random.randrange(0, screen_h_limit, fruit_width + fruit_width)
         # Make a pygame RECT for a collision box
@@ -150,7 +165,11 @@ while running:
                 snake_direction = "up"
             elif event.key == pygame.K_DOWN and snake_direction != "up":
                 snake_direction = "down"
-    screen.fill(black)
+    screen.fill(black) # Background color
+    score_text = font.render(str(score), True, font_color)
+    score_surface = score_text.get_rect(center=(screen_width/2,screen_height/2))
+    screen.blit(score_text, score_surface)
+
     # Snake Code
     new_head = add_node(snake, snake_direction, step, width)
     snake.append(new_head)
